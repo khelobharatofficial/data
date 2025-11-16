@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>India Region-wise Population Maps</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <!-- D3 & TopoJSON -->
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <script src="https://unpkg.com/topojson-client@3"></script>
+
+  <!-- jsPDF & svg2pdf for PDF export -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://unpkg.com/svg2pdf.js@2.0.0/dist/svg2pdf.min.js"></script>
+
+  <style>
+    * {
+      box-sizing: border-box;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    body {
+      margin: 0;
+      padding: 24px;
+      background: #f5f7fb;
+      color: #111827;
+    }
+
+    h1 {
+      margin-top: 0;
+      margin-bottom: 4px;
+      font-size: 28px;
+      font-weight: 700;
+    }
+
+    .subtitle {
+      margin-bottom: 24px;
+      color: #4b5563;
+      font-size: 14px;
+    }
+
+    .maps-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 20px;
+    }
+
+    .region-panel {
+      background: #ffffff;
+      border-radius: 16px;
+      box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+      padding: 16px 16px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .region-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .region-title {
+      font-size: 16px;
+      font-weight: 600;
+    }
+
+    .population-chip {
+      font-size: 12px;
+      padding: 4px 8px;
+      border-radius: 999px;
+      background: #e0f2fe;
+      color: #0369a1;
+      white-space: nowrap;
+    }
+
+    svg {
+      width: 100%;
+      height: auto;
+      background: #ffffff;
+      border-radius: 12px;
+      border: 1px solid #e5e7eb;
+    }
+
+    .region-info {
+      font-size: 12px;
+      color: #4b5563;
+      line-height: 1.4;
+      margin-top: 4px;
+      min-height: 40px;
+    }
+
+    .download-btn {
+      margin-top: 6px;
+      align-self: flex-start;
+      font-size: 12px;
+      padding: 6px 12px;
+      border-radius: 999px;
+      border: none;
+      background: #1d4ed8;
+      color: #ffffff;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      box-shadow: 0 4px 10px rgba(37, 99, 235, 0.35);
+      transition: transform 0.1s ease, box-shadow 0.1s ease, background 0.15s ease;
+    }
+
+    .download-btn:hover {
+      background: #1e40af;
+      transform: translateY(-1px);
+      box-shadow: 0 6px 16px rgba(37, 99, 235, 0.4);
+    }
+
+    .download-btn:active {
+      transform: translateY(0);
+      box-shadow: 0 3px 8px rgba(37, 99, 235, 0.3);
+    }
+
+    .download-btn span.icon {
+      font-size: 14px;
+    }
+
+    .tooltip {
+      position: fixed;
+      pointer-events: none;
+      padding: 6px 10px;
+      background: rgba(15, 23, 42, 0.95);
+      color: #f9fafb;
+      font-size: 11px;
+      border-radius: 8px;
+      box-shadow: 0 8px 20px rgba(15, 23, 42, 0.4);
+      opacity: 0;
+      transition: opacity 0.12s ease;
+      z-index: 1000;
+    }
+
+    .tooltip-title {
+      font-weight: 600;
+      margin-bottom: 2px;
+    }
+
+    .tooltip-line {
+      opacity: 0.9;
+    }
+
+    @media (max-width: 640px) {
+      body {
+        padding: 16px;
+      }
+
+      h1 {
+        font-size: 22px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <h1>India Region-wise Population Maps</h1>
+  <div class="subtitle">
+    Hover on the blue region to see details. Click any blue state to see region data. Use the “Download PDF” button to save that map with its data.
+  </div>
+
+  <div id="maps" class="maps-grid"></div>
+  <div id="tooltip" class="tooltip"></div>
+
+  <script>
+    // ----- CONFIGURATION -----
+    // Region mapping + population (your data)
+    const regions = {
+      jaipur: {
+        label: "Jaipur Region",
+        population: 36,
+        states: ["Delhi", "National Capital Territory of Delhi", "NCT of Delhi", "Haryana", "Rajasthan"],
+        color: "#1d4ed8"
+      },
+      lucknow: {
+        label: "Lucknow Region",
+        population: 32,
+        states: ["Uttar Pradesh", "Uttarakhand", "Uttaranchal"],
+        color: "#1d4ed8"
+      },
+      hyderabad: {
+        label: "Hyderabad Region",
+        population: 34,
+        states: [
+          "Andaman & Nicobar Islands", "Andaman and Nicobar Islands",
+          "Andhra Pradesh",
+          "Karnataka",
+          "Kerala",
+          "Lakshadweep", "Lakshadweep Islands",
+          "Puducherry", "Pondicherry",
+          "Telangana"
+        ],
+        color: "#1d4ed8"
+      },
+      patna: {
+        label: "Patna Region",
+        population: 25,
+        states: ["Bihar", "Jharkhand", "West Bengal"],
+        color: "#1d4ed8"
+      },
+      chandigarh: {
+        label: "Chandigarh Region",
+        population: 38,
+        states: ["Chandigarh", "Himachal Pradesh", "Jammu & Kashmir", "Jammu and Kashmir", "Punjab"],
+        color: "#1d4ed8"
+      },
+      shillong: {
+        label: "Shillong Region",
+        population: 38,
+        states: [
+          "Arunachal Pradesh",
+          "Assam",
+          "Manipur",
+          "Meghalaya",
+          "Mizoram",
+          "Nagaland",
+          "Sikkim",
+          "Tripura"
+        ],
+        color: "#1d4ed8"
+      },
+      bhopal: {
+        label: "Bhopal Region",
+        population: 38,
+        states: ["Chhattisgarh", "Madhya Pradesh", "Orissa", "Odisha"],
+        color: "#1d4ed8"
+      },
+      pune: {
+        label: "Pune Region",
+        population: 32,
+        states: [
+          "Dadra & Nagar Haveli", "Dadra and Nagar Haveli",
+          "Daman & Diu", "Daman and Diu",
+          "Goa",
+          "Gujarat",
+          "Maharashtra"
+        ],
+        color: "#1d4ed8"
+      }
+    };
+
+    const totalPopulation = 276; // as you provided
+
+    // Helper to normalize names (for matching state names which differ slightly)
+    function normalizeName(name) {
+      return (name || "")
+        .toLowerCase()
+        .replace(/&/g, "and")
+        .replace(/u\.t\./g, "")
+        .replace(/ut$/g, "")
+        .replace(/union territory/g, "")
+        .replace(/\./g, "")
+        .replace(/\s+/g, " ")
+        .trim();
+    }
+
+    // Build normalized state lists in config
+    for (const key in regions) {
+      regions[key].normalizedStates = regions[key].states.map(normalizeName);
+    }
+
+    // Tooltip
+    const tooltip = d3.select("#tooltip");
+
+    function showTooltip(html, x, y) {
+      tooltip
+        .html(html)
+        .style("left", (x + 12) + "px")
+        .style("top", (y + 12) + "px")
+        .style("opacity", 1);
+    }
+
+    function hideTooltip() {
+      tooltip.style("opacity", 0);
+    }
+
+    // MAIN LOGIC: load India TopoJSON and render 8 maps
+    fetch("india.json")
+      .then(res => res.json())
+      .then(india => {
+        const objects = india.objects;
+        const objectName = Object.keys(objects)[0]; // assume first object is states
+        const statesGeo = topojson.feature(india, objects[objectName]);
+
+        const width = 350;
+        const height = 350;
+
+        const projection = d3.geoMercator()
+          .fitSize([width, height], statesGeo);
+
+        const path = d3.geoPath().projection(projection);
+
+        const container = d3.select("#maps");
+
+        // Create a panel for each region
+        Object.entries(regions).forEach(([key, regionConfig]) => {
+          const panel = container.append("div")
+            .attr("class", "region-panel");
+
+          const header = panel.append("div")
+            .attr("class", "region-header");
+
+          header.append("div")
+            .attr("class", "region-title")
+            .text(regionConfig.label);
+
+          header.append("div")
+            .attr("class", "population-chip")
+            .text(`Population: ${regionConfig.population}`);
+
+          const svg = panel.append("svg")
+            .attr("viewBox", `0 0 ${width} ${height}`)
+            .attr("preserveAspectRatio", "xMidYMid meet");
+
+          const g = svg.append("g");
+
+          const infoBox = panel.append("div")
+            .attr("class", "region-info")
+            .html(
+              "Click any <b>blue state</b> in this map to see region details here."
+            );
+
+          const belongsToRegion = (d) => {
+            const name = d.properties.ST_NM || d.properties.state || d.properties.name;
+            const norm = normalizeName(name);
+            return regionConfig.normalizedStates.includes(norm);
+          };
+
+          // Draw states
+          g.selectAll("path")
+            .data(statesGeo.features)
+            .enter()
+            .append("path")
+            .attr("d", path)
+            .attr("fill", d => belongsToRegion(d) ? regionConfig.color : "#ffffff")
+            .attr("stroke", "#9ca3af")
+            .attr("stroke-width", 0.5)
+            .on("mousemove", (event, d) => {
+              if (!belongsToRegion(d)) {
+                hideTooltip();
+                return;
+              }
+              const stateName = d.properties.ST_NM || d.properties.state || d.properties.name;
+              const html = `
+                <div class="tooltip-title">${regionConfig.label}</div>
+                <div class="tooltip-line">State: ${stateName}</div>
+                <div class="tooltip-line">Region population: ${regionConfig.population}</div>
+                <div class="tooltip-line">Total (all regions): ${totalPopulation}</div>
+              `;
+              showTooltip(html, event.clientX, event.clientY);
+            })
+            .on("mouseover", function(event, d) {
+              if (!belongsToRegion(d)) return;
+              d3.select(this).attr("fill", "#1e3a8a");
+            })
+            .on("mouseout", function(event, d) {
+              if (!belongsToRegion(d)) return;
+              d3.select(this).attr("fill", regionConfig.color);
+              hideTooltip();
+            })
+            .on("click", (event, d) => {
+              if (!belongsToRegion(d)) return;
+              const stateName = d.properties.ST_NM || d.properties.state || d.properties.name;
+              infoBox.html(`
+                <div><b>Region:</b> ${regionConfig.label}</div>
+                <div><b>Clicked state:</b> ${stateName}</div>
+                <div><b>Region population:</b> ${regionConfig.population}</div>
+                <div><b>Total population (all regions):</b> ${totalPopulation}</div>
+                <div><b>States in this region:</b> ${regionConfig.states.join(", ")}</div>
+              `);
+            });
+
+          // Download PDF button
+          const btn = panel.append("button")
+            .attr("class", "download-btn")
+            .html('<span class="icon">⬇️</span><span>Download PDF</span>');
+
+          btn.on("click", async () => {
+            const svgNode = svg.node();
+            const { jsPDF } = window.jspdf;
+            const pdf = new jsPDF({
+              orientation: "landscape",
+              unit: "pt",
+              format: "a4"
+            });
+
+            const pageWidth = pdf.internal.pageSize.getWidth();
+            const pageHeight = pdf.internal.pageSize.getHeight();
+
+            const margin = 40;
+            const mapWidth = width;
+            const mapHeight = height;
+            const scale = Math.min(
+              (pageWidth - 2 * margin) / mapWidth,
+              (pageHeight - 2 * margin - 80) / mapHeight
+            );
+
+            const drawWidth = mapWidth * scale;
+            const drawHeight = mapHeight * scale;
+            const x = margin;
+            const y = margin + 40;
+
+            // Title + data text
+            pdf.setFontSize(16);
+            pdf.text(regionConfig.label, margin, 30);
+
+            pdf.setFontSize(11);
+            pdf.text(`Region population: ${regionConfig.population}`, margin + 240, 30);
+            pdf.text(`Total population (all regions): ${totalPopulation}`, margin + 240, 44);
+
+            pdf.setFontSize(10);
+            pdf.text("States:", margin, pageHeight - margin - 24);
+            const statesLine = regionConfig.states.join(", ");
+            pdf.text(statesLine, margin, pageHeight - margin - 10, { maxWidth: pageWidth - 2 * margin });
+
+            // Convert SVG to PDF
+            svg2pdf(svgNode, pdf, {
+              x: x,
+              y: y,
+              width: drawWidth,
+              height: drawHeight
+            });
+
+            const fileName = regionConfig.label.toLowerCase().replace(/\s+/g, "_") + "_map.pdf";
+            pdf.save(fileName);
+          });
+        });
+      })
+      .catch(err => {
+        console.error("Error loading india.json:", err);
+        alert("Error loading india.json. Make sure the file is in the same folder as this HTML.");
+      });
+  </script>
+</body>
+</html>
