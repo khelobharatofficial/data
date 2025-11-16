@@ -1,440 +1,401 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>India Region-wise Population Maps</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <title>India Thematic Map Generator</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <!-- D3 & TopoJSON -->
-  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"
+          integrity="sha512-d3I1mAidY10B2Y1U6E6qpq3z19O4TgM5euG48dFsj74VWXcy8dPeN1jCIRrZoOn3rU5xScQLzGQ5UlThKq4zPA=="
+          crossorigin="anonymous" referrerpolicy="no-referrer"></script>
   <script src="https://unpkg.com/topojson-client@3"></script>
 
-  <!-- jsPDF & svg2pdf for PDF export -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <script src="https://unpkg.com/svg2pdf.js@2.0.0/dist/svg2pdf.min.js"></script>
+  <!-- Export libs -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"
+          integrity="sha512-BNa5l8mTzUPYbW1bQkVxP7eC9GZ3wREAbkL3GU9SrDkq7pJgCc2pMnYeS8k8JD9U6i8x7Hux3x33x4M8mLr0FA=="
+          crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"
+          integrity="sha512-/FqT8dYt+XplVgN6mJMrn4C1N/GLC+Yv1H9iW8Yw3cO6GyuJbHySLF2H+McZuEcUqVqlcA1GqF58XxwYw7A5cA=="
+          crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 
   <style>
-    * {
-      box-sizing: border-box;
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-    }
-
+    * { box-sizing: border-box; }
     body {
       margin: 0;
-      padding: 24px;
-      background: #f5f7fb;
-      color: #111827;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #f4f5fb;
+      color: #222;
     }
-
-    h1 {
-      margin-top: 0;
-      margin-bottom: 4px;
-      font-size: 28px;
-      font-weight: 700;
-    }
-
-    .subtitle {
-      margin-bottom: 24px;
-      color: #4b5563;
-      font-size: 14px;
-    }
-
-    .maps-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-      gap: 20px;
-    }
-
-    .region-panel {
-      background: #ffffff;
-      border-radius: 16px;
-      box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
-      padding: 16px 16px 20px;
+    h1, h2, h3 { margin: 0 0 0.5rem; }
+    .page {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 1rem;
       display: flex;
       flex-direction: column;
-      gap: 10px;
+      gap: 1rem;
     }
-
-    .region-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 8px;
+    .layout {
+      display: grid;
+      grid-template-columns: minmax(260px, 340px) 1fr;
+      gap: 1rem;
     }
-
-    .region-title {
-      font-size: 16px;
+    @media (max-width: 900px) {
+      .layout { grid-template-columns: 1fr; }
+    }
+    .card {
+      background: #fff;
+      border-radius: 0.8rem;
+      padding: 1rem 1.2rem;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+    label {
+      display: block;
+      font-size: 0.9rem;
+      margin-bottom: 0.25rem;
       font-weight: 600;
     }
-
-    .population-chip {
-      font-size: 12px;
-      padding: 4px 8px;
-      border-radius: 999px;
-      background: #e0f2fe;
-      color: #0369a1;
-      white-space: nowrap;
+    input[type="text"], select, textarea {
+      width: 100%;
+      padding: 0.45rem 0.6rem;
+      border-radius: 0.4rem;
+      border: 1px solid #ccc;
+      font-size: 0.9rem;
+      margin-bottom: 0.6rem;
     }
-
-    svg {
+    textarea {
+      min-height: 70px;
+      resize: vertical;
+    }
+    .row-inline {
+      display: flex;
+      gap: 0.4rem;
+      align-items: center;
+      margin-bottom: 0.5rem;
+      flex-wrap: wrap;
+    }
+    .row-inline select {
+      flex: 1;
+      margin-bottom: 0;
+    }
+    .row-inline input[type="color"] {
+      width: 45px;
+      height: 32px;
+      padding: 0;
+      border: none;
+      background: none;
+    }
+    button {
+      border-radius: 0.4rem;
+      border: none;
+      padding: 0.5rem 0.9rem;
+      font-size: 0.9rem;
+      cursor: pointer;
+      background: #2563eb;
+      color: #fff;
+      font-weight: 600;
+      margin-right: 0.4rem;
+    }
+    button.secondary {
+      background: #0f766e;
+    }
+    button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+    #map-container svg {
       width: 100%;
       height: auto;
+    }
+    #export-area {
       background: #ffffff;
-      border-radius: 12px;
-      border: 1px solid #e5e7eb;
+      padding: 0.5rem 0.5rem 1rem;
+      border-radius: 0.8rem;
     }
-
-    .region-info {
-      font-size: 12px;
-      color: #4b5563;
-      line-height: 1.4;
-      margin-top: 4px;
-      min-height: 40px;
+    #map-title-svg {
+      font-size: 20px;
+      font-weight: 700;
     }
-
-    .download-btn {
-      margin-top: 6px;
-      align-self: flex-start;
-      font-size: 12px;
-      padding: 6px 12px;
-      border-radius: 999px;
-      border: none;
-      background: #1d4ed8;
-      color: #ffffff;
-      cursor: pointer;
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      box-shadow: 0 4px 10px rgba(37, 99, 235, 0.35);
-      transition: transform 0.1s ease, box-shadow 0.1s ease, background 0.15s ease;
+    #data-box {
+      margin-top: 0.6rem;
+      padding: 0.7rem 0.9rem;
+      border-radius: 0.6rem;
+      background: #f1f5f9;
+      border: 1px solid #e2e8f0;
     }
-
-    .download-btn:hover {
-      background: #1e40af;
-      transform: translateY(-1px);
-      box-shadow: 0 6px 16px rgba(37, 99, 235, 0.4);
+    #data-box h3 {
+      margin-top: 0;
+      font-size: 1rem;
     }
-
-    .download-btn:active {
-      transform: translateY(0);
-      box-shadow: 0 3px 8px rgba(37, 99, 235, 0.3);
+    #data-box p {
+      margin: 0.25rem 0 0;
+      font-size: 0.9rem;
+      white-space: pre-wrap;
     }
-
-    .download-btn span.icon {
-      font-size: 14px;
-    }
-
-    .tooltip {
-      position: fixed;
-      pointer-events: none;
-      padding: 6px 10px;
-      background: rgba(15, 23, 42, 0.95);
-      color: #f9fafb;
-      font-size: 11px;
-      border-radius: 8px;
-      box-shadow: 0 8px 20px rgba(15, 23, 42, 0.4);
-      opacity: 0;
-      transition: opacity 0.12s ease;
-      z-index: 1000;
-    }
-
-    .tooltip-title {
-      font-weight: 600;
-      margin-bottom: 2px;
-    }
-
-    .tooltip-line {
-      opacity: 0.9;
-    }
-
-    @media (max-width: 640px) {
-      body {
-        padding: 16px;
-      }
-
-      h1 {
-        font-size: 22px;
-      }
+    .small-note {
+      font-size: 0.8rem;
+      color: #555;
+      margin-top: -0.2rem;
+      margin-bottom: 0.4rem;
     }
   </style>
 </head>
 <body>
-  <h1>India Region-wise Population Maps</h1>
-  <div class="subtitle">
-    Hover on the blue region to see details. Click any blue state to see region data. Use the “Download PDF” button to save that map with its data.
+  <div class="page">
+    <header>
+      <h1>India Map Data Visualiser</h1>
+      <p style="margin:0.3rem 0 0.5rem;">
+        Choose states, pick colours, add your data title & description, then export the map as PNG or PDF.
+      </p>
+    </header>
+
+    <div class="layout">
+      <!-- Controls -->
+      <section class="card">
+        <h2 style="font-size:1.1rem;">Input Panel</h2>
+
+        <label for="mapTitle">Map title</label>
+        <input id="mapTitle" type="text" placeholder="e.g. Literacy Rate by State" />
+
+        <label for="numStates">Number of states to colour</label>
+        <select id="numStates">
+          <option value="0">0</option>
+          <!-- you can change max from 10 to full list, but 10 keeps UI simple -->
+          <option value="1">1</option><option value="2">2</option>
+          <option value="3">3</option><option value="4">4</option>
+          <option value="5">5</option><option value="6">6</option>
+          <option value="7">7</option><option value="8">8</option>
+          <option value="9">9</option><option value="10">10</option>
+        </select>
+        <div class="small-note">Only selected states will be coloured. All others stay white by default.</div>
+
+        <div id="state-selectors"></div>
+
+        <hr style="margin:0.7rem 0; border:none; border-top:1px solid #e2e8f0;" />
+
+        <label for="dataTitle">Title of data</label>
+        <input id="dataTitle" type="text" placeholder="e.g. Population Density (2021)" />
+
+        <label for="dataDescription">Data description</label>
+        <textarea id="dataDescription" placeholder="Describe what this map shows (one or more sentences)..."></textarea>
+
+        <button id="generateBtn">Generate Map</button>
+        <span id="statusMsg" class="small-note"></span>
+
+        <hr style="margin:0.7rem 0; border:none; border-top:1px solid #e2e8f0;" />
+
+        <div>
+          <button id="downloadPngBtn" class="secondary" disabled>Download PNG</button>
+          <button id="downloadPdfBtn" class="secondary" disabled>Download PDF</button>
+          <div class="small-note">Export buttons activate after you generate a map.</div>
+        </div>
+      </section>
+
+      <!-- Map + data box & export area -->
+      <section class="card">
+        <h2 style="font-size:1.1rem;">Preview</h2>
+        <div id="export-area">
+          <div id="map-container"></div>
+          <div id="data-box">
+            <h3 id="data-title-display">Data title will appear here</h3>
+            <p id="data-description-display">
+              Data description will appear here after you generate the map.
+            </p>
+          </div>
+        </div>
+      </section>
+    </div>
   </div>
 
-  <div id="maps" class="maps-grid"></div>
-  <div id="tooltip" class="tooltip"></div>
-
   <script>
-    // ----- CONFIGURATION -----
-    // Region mapping + population (your data)
-    const regions = {
-      jaipur: {
-        label: "Jaipur Region",
-        population: 36,
-        states: ["Delhi", "National Capital Territory of Delhi", "NCT of Delhi", "Haryana", "Rajasthan"],
-        color: "#1d4ed8"
-      },
-      lucknow: {
-        label: "Lucknow Region",
-        population: 32,
-        states: ["Uttar Pradesh", "Uttarakhand", "Uttaranchal"],
-        color: "#1d4ed8"
-      },
-      hyderabad: {
-        label: "Hyderabad Region",
-        population: 34,
-        states: [
-          "Andaman & Nicobar Islands", "Andaman and Nicobar Islands",
-          "Andhra Pradesh",
-          "Karnataka",
-          "Kerala",
-          "Lakshadweep", "Lakshadweep Islands",
-          "Puducherry", "Pondicherry",
-          "Telangana"
-        ],
-        color: "#1d4ed8"
-      },
-      patna: {
-        label: "Patna Region",
-        population: 25,
-        states: ["Bihar", "Jharkhand", "West Bengal"],
-        color: "#1d4ed8"
-      },
-      chandigarh: {
-        label: "Chandigarh Region",
-        population: 38,
-        states: ["Chandigarh", "Himachal Pradesh", "Jammu & Kashmir", "Jammu and Kashmir", "Punjab"],
-        color: "#1d4ed8"
-      },
-      shillong: {
-        label: "Shillong Region",
-        population: 38,
-        states: [
-          "Arunachal Pradesh",
-          "Assam",
-          "Manipur",
-          "Meghalaya",
-          "Mizoram",
-          "Nagaland",
-          "Sikkim",
-          "Tripura"
-        ],
-        color: "#1d4ed8"
-      },
-      bhopal: {
-        label: "Bhopal Region",
-        population: 38,
-        states: ["Chhattisgarh", "Madhya Pradesh", "Orissa", "Odisha"],
-        color: "#1d4ed8"
-      },
-      pune: {
-        label: "Pune Region",
-        population: 32,
-        states: [
-          "Dadra & Nagar Haveli", "Dadra and Nagar Haveli",
-          "Daman & Diu", "Daman and Diu",
-          "Goa",
-          "Gujarat",
-          "Maharashtra"
-        ],
-        color: "#1d4ed8"
-      }
-    };
+    // Global variables
+    let stateFeatures = [];
+    let stateNames = [];
 
-    const totalPopulation = 276; // as you provided
-
-    // Helper to normalize names (for matching state names which differ slightly)
-    function normalizeName(name) {
-      return (name || "")
-        .toLowerCase()
-        .replace(/&/g, "and")
-        .replace(/u\.t\./g, "")
-        .replace(/ut$/g, "")
-        .replace(/union territory/g, "")
-        .replace(/\./g, "")
-        .replace(/\s+/g, " ")
-        .trim();
-    }
-
-    // Build normalized state lists in config
-    for (const key in regions) {
-      regions[key].normalizedStates = regions[key].states.map(normalizeName);
-    }
-
-    // Tooltip
-    const tooltip = d3.select("#tooltip");
-
-    function showTooltip(html, x, y) {
-      tooltip
-        .html(html)
-        .style("left", (x + 12) + "px")
-        .style("top", (y + 12) + "px")
-        .style("opacity", 1);
-    }
-
-    function hideTooltip() {
-      tooltip.style("opacity", 0);
-    }
-
-    // MAIN LOGIC: load India TopoJSON and render 8 maps
+    // Load TopoJSON and prepare state list
     fetch("india.json")
-      .then(res => res.json())
-      .then(india => {
-        const objects = india.objects;
-        const objectName = Object.keys(objects)[0]; // assume first object is states
-        const statesGeo = topojson.feature(india, objects[objectName]);
+      .then(res => {
+        if (!res.ok) throw new Error("Unable to load india.json");
+        return res.json();
+      })
+      .then(topoData => {
+        // 'states' object inside the Topology
+        const geo = topojson.feature(topoData, topoData.objects.states);
+        stateFeatures = geo.features;
+        stateNames = stateFeatures
+          .map(f => f.id || f.properties.st_nm)
+          .filter(Boolean)
+          .sort((a, b) => a.localeCompare(b));
 
-        const width = 350;
-        const height = 350;
-
-        const projection = d3.geoMercator()
-          .fitSize([width, height], statesGeo);
-
-        const path = d3.geoPath().projection(projection);
-
-        const container = d3.select("#maps");
-
-        // Create a panel for each region
-        Object.entries(regions).forEach(([key, regionConfig]) => {
-          const panel = container.append("div")
-            .attr("class", "region-panel");
-
-          const header = panel.append("div")
-            .attr("class", "region-header");
-
-          header.append("div")
-            .attr("class", "region-title")
-            .text(regionConfig.label);
-
-          header.append("div")
-            .attr("class", "population-chip")
-            .text(`Population: ${regionConfig.population}`);
-
-          const svg = panel.append("svg")
-            .attr("viewBox", `0 0 ${width} ${height}`)
-            .attr("preserveAspectRatio", "xMidYMid meet");
-
-          const g = svg.append("g");
-
-          const infoBox = panel.append("div")
-            .attr("class", "region-info")
-            .html(
-              "Click any <b>blue state</b> in this map to see region details here."
-            );
-
-          const belongsToRegion = (d) => {
-            const name = d.properties.ST_NM || d.properties.state || d.properties.name;
-            const norm = normalizeName(name);
-            return regionConfig.normalizedStates.includes(norm);
-          };
-
-          // Draw states
-          g.selectAll("path")
-            .data(statesGeo.features)
-            .enter()
-            .append("path")
-            .attr("d", path)
-            .attr("fill", d => belongsToRegion(d) ? regionConfig.color : "#ffffff")
-            .attr("stroke", "#9ca3af")
-            .attr("stroke-width", 0.5)
-            .on("mousemove", (event, d) => {
-              if (!belongsToRegion(d)) {
-                hideTooltip();
-                return;
-              }
-              const stateName = d.properties.ST_NM || d.properties.state || d.properties.name;
-              const html = `
-                <div class="tooltip-title">${regionConfig.label}</div>
-                <div class="tooltip-line">State: ${stateName}</div>
-                <div class="tooltip-line">Region population: ${regionConfig.population}</div>
-                <div class="tooltip-line">Total (all regions): ${totalPopulation}</div>
-              `;
-              showTooltip(html, event.clientX, event.clientY);
-            })
-            .on("mouseover", function(event, d) {
-              if (!belongsToRegion(d)) return;
-              d3.select(this).attr("fill", "#1e3a8a");
-            })
-            .on("mouseout", function(event, d) {
-              if (!belongsToRegion(d)) return;
-              d3.select(this).attr("fill", regionConfig.color);
-              hideTooltip();
-            })
-            .on("click", (event, d) => {
-              if (!belongsToRegion(d)) return;
-              const stateName = d.properties.ST_NM || d.properties.state || d.properties.name;
-              infoBox.html(`
-                <div><b>Region:</b> ${regionConfig.label}</div>
-                <div><b>Clicked state:</b> ${stateName}</div>
-                <div><b>Region population:</b> ${regionConfig.population}</div>
-                <div><b>Total population (all regions):</b> ${totalPopulation}</div>
-                <div><b>States in this region:</b> ${regionConfig.states.join(", ")}</div>
-              `);
-            });
-
-          // Download PDF button
-          const btn = panel.append("button")
-            .attr("class", "download-btn")
-            .html('<span class="icon">⬇️</span><span>Download PDF</span>');
-
-          btn.on("click", async () => {
-            const svgNode = svg.node();
-            const { jsPDF } = window.jspdf;
-            const pdf = new jsPDF({
-              orientation: "landscape",
-              unit: "pt",
-              format: "a4"
-            });
-
-            const pageWidth = pdf.internal.pageSize.getWidth();
-            const pageHeight = pdf.internal.pageSize.getHeight();
-
-            const margin = 40;
-            const mapWidth = width;
-            const mapHeight = height;
-            const scale = Math.min(
-              (pageWidth - 2 * margin) / mapWidth,
-              (pageHeight - 2 * margin - 80) / mapHeight
-            );
-
-            const drawWidth = mapWidth * scale;
-            const drawHeight = mapHeight * scale;
-            const x = margin;
-            const y = margin + 40;
-
-            // Title + data text
-            pdf.setFontSize(16);
-            pdf.text(regionConfig.label, margin, 30);
-
-            pdf.setFontSize(11);
-            pdf.text(`Region population: ${regionConfig.population}`, margin + 240, 30);
-            pdf.text(`Total population (all regions): ${totalPopulation}`, margin + 240, 44);
-
-            pdf.setFontSize(10);
-            pdf.text("States:", margin, pageHeight - margin - 24);
-            const statesLine = regionConfig.states.join(", ");
-            pdf.text(statesLine, margin, pageHeight - margin - 10, { maxWidth: pageWidth - 2 * margin });
-
-            // Convert SVG to PDF
-            svg2pdf(svgNode, pdf, {
-              x: x,
-              y: y,
-              width: drawWidth,
-              height: drawHeight
-            });
-
-            const fileName = regionConfig.label.toLowerCase().replace(/\s+/g, "_") + "_map.pdf";
-            pdf.save(fileName);
-          });
-        });
+        // build selectors if any count already chosen
+        buildStateSelectors(parseInt(document.getElementById("numStates").value, 10));
+        document.getElementById("statusMsg").textContent = "Map data loaded.";
       })
       .catch(err => {
-        console.error("Error loading india.json:", err);
-        alert("Error loading india.json. Make sure the file is in the same folder as this HTML.");
+        console.error(err);
+        document.getElementById("statusMsg").textContent =
+          "Error loading india.json. Make sure it is in the same folder.";
       });
+
+    // Build dynamic state selectors
+    function buildStateSelectors(count) {
+      const container = document.getElementById("state-selectors");
+      container.innerHTML = "";
+      for (let i = 0; i < count; i++) {
+        const row = document.createElement("div");
+        row.className = "row-inline";
+
+        const label = document.createElement("span");
+        label.textContent = `State ${i + 1}:`;
+        label.style.fontSize = "0.85rem";
+        label.style.minWidth = "55px";
+
+        const select = document.createElement("select");
+        select.className = "state-select";
+        const defaultOpt = document.createElement("option");
+        defaultOpt.value = "";
+        defaultOpt.textContent = "-- select state --";
+        select.appendChild(defaultOpt);
+        stateNames.forEach(name => {
+          const opt = document.createElement("option");
+          opt.value = name;
+          opt.textContent = name;
+          select.appendChild(opt);
+        });
+
+        const colorInput = document.createElement("input");
+        colorInput.type = "color";
+        colorInput.value = "#3b82f6"; // default blue
+        colorInput.className = "state-color";
+
+        row.appendChild(label);
+        row.appendChild(select);
+        row.appendChild(colorInput);
+        container.appendChild(row);
+      }
+    }
+
+    document.getElementById("numStates").addEventListener("change", e => {
+      const count = parseInt(e.target.value, 10) || 0;
+      buildStateSelectors(count);
+    });
+
+    // Helper: get selections as {stateName: color}
+    function getStateColourMapping() {
+      const mapping = {};
+      const selects = document.querySelectorAll(".state-select");
+      const colors = document.querySelectorAll(".state-color");
+      selects.forEach((sel, idx) => {
+        const state = sel.value;
+        const color = colors[idx].value || "#000000";
+        if (state) mapping[state] = color;
+      });
+      return mapping;
+    }
+
+    // Draw map with selections
+    function drawMap() {
+      if (!stateFeatures.length) {
+        alert("Map not loaded yet. Wait a moment and try again.");
+        return;
+      }
+
+      const mapTitle = document.getElementById("mapTitle").value.trim();
+      const dataTitle = document.getElementById("dataTitle").value.trim();
+      const dataDescription = document.getElementById("dataDescription").value.trim();
+      const stateColours = getStateColourMapping();
+
+      // Update data box
+      document.getElementById("data-title-display").textContent =
+        dataTitle || "No data title given";
+      document.getElementById("data-description-display").textContent =
+        dataDescription || "No data description provided.";
+
+      // Set up SVG
+      const width = 650;
+      const height = 750;
+
+      const container = d3.select("#map-container");
+      container.selectAll("*").remove();
+
+      const svg = container
+        .append("svg")
+        .attr("viewBox", `0 0 ${width} ${height}`)
+        .attr("preserveAspectRatio", "xMidYMid meet");
+
+      const projection = d3.geoMercator()
+        .fitSize([width, height - 40], { type: "FeatureCollection", features: stateFeatures });
+
+      const path = d3.geoPath().projection(projection);
+
+      // Title
+      if (mapTitle) {
+        svg.append("text")
+          .attr("id", "map-title-svg")
+          .attr("x", width / 2)
+          .attr("y", 28)
+          .attr("text-anchor", "middle")
+          .text(mapTitle);
+      }
+
+      const mapGroup = svg.append("g")
+        .attr("transform", mapTitle ? "translate(0,40)" : "translate(0,10)");
+
+      mapGroup.selectAll("path")
+        .data(stateFeatures)
+        .enter()
+        .append("path")
+        .attr("d", path)
+        .attr("fill", d => {
+          const name = d.id || (d.properties && d.properties.st_nm);
+          return stateColours[name] || "#ffffff"; // white by default
+        })
+        .attr("stroke", "#000000")
+        .attr("stroke-width", 0.6);
+
+      // Enable export buttons
+      document.getElementById("downloadPngBtn").disabled = false;
+      document.getElementById("downloadPdfBtn").disabled = false;
+    }
+
+    document.getElementById("generateBtn").addEventListener("click", () => {
+      drawMap();
+    });
+
+    // Export functions
+    async function exportAsPNG() {
+      const exportArea = document.getElementById("export-area");
+      const canvas = await html2canvas(exportArea, { scale: 2 });
+      const link = document.createElement("a");
+      link.download = "india-map.png";
+      link.href = canvas.toDataURL("image/png");
+      link.click();
+    }
+
+    async function exportAsPDF() {
+      const exportArea = document.getElementById("export-area");
+      const canvas = await html2canvas(exportArea, { scale: 2 });
+      const imgData = canvas.toDataURL("image/png");
+
+      const { jsPDF } = window.jspdf;
+      const pdf = new jsPDF("p", "mm", "a4");
+
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+
+      const imgProps = pdf.getImageProperties(imgData);
+      const pdfWidth = pageWidth - 10; // small margin
+      const pdfHeight = imgProps.height * pdfWidth / imgProps.width;
+
+      const yOffset = (pageHeight - pdfHeight) / 2 > 0 ? (pageHeight - pdfHeight) / 2 : 5;
+
+      pdf.addImage(imgData, "PNG", 5, yOffset, pdfWidth, pdfHeight);
+      pdf.save("india-map.pdf");
+    }
+
+    document.getElementById("downloadPngBtn").addEventListener("click", exportAsPNG);
+    document.getElementById("downloadPdfBtn").addEventListener("click", exportAsPDF);
   </script>
 </body>
 </html>
