@@ -382,20 +382,39 @@
         })
         .attr("stroke", "none");
 
-      // draw only state borders using topojson.mesh
+      // draw outer India boundary + internal state borders using topojson.mesh
       if (topoGlobal && mainObjectKey) {
-        const mesh = topojson.mesh(
+        const obj = topoGlobal.objects[mainObjectKey];
+
+        // 1) Outer India outline
+        const meshOuter = topojson.mesh(
           topoGlobal,
-          topoGlobal.objects[mainObjectKey],
-          (a, b) => !b || (a.properties && b.properties &&
-                           a.properties[stateNameProp] !== b.properties[stateNameProp])
+          obj,
+          (a, b) => a === b
         );
 
         mapGroup.append("path")
-          .attr("d", path(mesh))
+          .attr("d", path(meshOuter))
           .attr("fill", "none")
           .attr("stroke", "#111827")
-          .attr("stroke-width", 0.7);
+          .attr("stroke-width", 0.9);   // thicker for country border
+
+        // 2) Internal state borders (no district lines)
+        const meshStates = topojson.mesh(
+          topoGlobal,
+          obj,
+          (a, b) =>
+            a !== b &&
+            a.properties &&
+            b.properties &&
+            a.properties[stateNameProp] !== b.properties[stateNameProp]
+        );
+
+        mapGroup.append("path")
+          .attr("d", path(meshStates))
+          .attr("fill", "none")
+          .attr("stroke", "#111827")
+          .attr("stroke-width", 0.6);
       }
 
       document.getElementById("downloadPngBtn").disabled = false;
