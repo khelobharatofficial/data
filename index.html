@@ -113,7 +113,7 @@
       border: 1px solid #e2e8f0;
       background: #f8fafc;
       margin-bottom: 0.6rem;
-      min-height: 350px;  /* ensures you see the area even before drawing */
+      min-height: 350px;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -215,13 +215,14 @@
   </div>
 
   <script>
-    let stateFeatures = [];
-    let stateNames = [];
+    let stateFeatures = [];      // district polygons
+    let stateNames = [];         // unique state names
     let stateNameProp = "name";  // detected property name
+    let topoGlobal = null;       // full Topology for mesh
+    let mainObjectKey = null;
 
     const statusMsg = document.getElementById("statusMsg");
 
-    // Utility: detect state name from a feature
     function detectStateNameProp(sampleFeature) {
       if (!sampleFeature) return "id";
       const props = sampleFeature.properties || {};
@@ -244,27 +245,24 @@
         return res.json();
       })
       .then(topoData => {
+        topoGlobal = topoData;
         const objectKeys = Object.keys(topoData.objects || {});
         if (!objectKeys.length) throw new Error("No objects in india.json Topology");
-        const mainKey = objectKeys[0];   // take first object automatically
-        const geo = topojson.feature(topoData, topoData.objects[mainKey]);
+        mainObjectKey = objectKeys[0];
 
+        const geo = topojson.feature(topoData, topoData.objects[mainObjectKey]);
         stateFeatures = geo.features || [];
         if (!stateFeatures.length) throw new Error("No features found in india.json");
 
-        // detect which property actually stores state names
         stateNameProp = detectStateNameProp(stateFeatures[0]);
 
-        stateNames = stateFeatures
-          .map(getFeatureName)
-          .filter(Boolean)
-          .sort((a, b) => a.localeCompare(b));
+        const setNames = new Set();
+        stateFeatures.forEach(f => setNames.add(getFeatureName(f)));
+        stateNames = Array.from(setNames).sort((a, b) => a.localeCompare(b));
 
-        // build selectors based on current number
         buildStateSelectors(parseInt(document.getElementById("numStates").value, 10));
-
         statusMsg.textContent =
-          `Map data loaded (${stateFeatures.length} states from "${mainKey}", label property "${stateNameProp}").`;
+          `Map data loaded (${stateNames.length} states from "${mainObjectKey}", label property "${stateNameProp}").`;
       })
       .catch(err => {
         console.error(err);
@@ -346,7 +344,7 @@
       const height = 750;
 
       const container = d3.select("#map-container");
-      container.selectAll("*").remove(); // clear placeholder text & old map
+      container.selectAll("*").remove();
 
       const svg = container
         .append("svg")
@@ -366,30 +364,39 @@
       const mapGroup = svg.append("g")
         .attr("transform", mapTitle ? "translate(0,40)" : "translate(0,10)");
 
-      // light background so you clearly see the area
-      mapGroup.append("rect")
-        .attr("x", 0)
-        .attr("y", 0)
-        .attr("width", width)
-        .attr("height", height - 60)
-        .attr("fill", "#e5e7eb");
-
       const projection = d3.geoMercator()
         .fitSize([width, height - 60], { type: "FeatureCollection", features: stateFeatures });
 
       const path = d3.geoPath().projection(projection);
 
-      mapGroup.selectAll("path")
+      // fill districts (no stroke so district boundaries are invisible)
+      mapGroup.selectAll("path.district")
         .data(stateFeatures)
         .enter()
         .append("path")
+        .attr("class", "district")
         .attr("d", path)
         .attr("fill", d => {
           const name = getFeatureName(d);
           return stateColours[name] || "#ffffff";  // white if not selected
         })
-        .attr("stroke", "#111827")
-        .attr("stroke-width", 0.6);
+        .attr("stroke", "none");
+
+      // draw only state borders using topojson.mesh
+      if (topoGlobal && mainObjectKey) {
+        const mesh = topojson.mesh(
+          topoGlobal,
+          topoGlobal.objects[mainObjectKey],
+          (a, b) => !b || (a.properties && b.properties &&
+                           a.properties[stateNameProp] !== b.properties[stateNameProp])
+        );
+
+        mapGroup.append("path")
+          .attr("d", path(mesh))
+          .attr("fill", "none")
+          .attr("stroke", "#111827")
+          .attr("stroke-width", 0.7);
+      }
 
       document.getElementById("downloadPngBtn").disabled = false;
       document.getElementById("downloadPdfBtn").disabled = false;
