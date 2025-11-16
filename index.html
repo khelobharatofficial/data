@@ -2,9 +2,9 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>India Map Data Visualiser</title>
+  <title>India Map Data Visualiser (Khelo Bharat)</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-
+  <link rel="icon" type="image/svg+xml" href="favicon.svg" />
   <!-- D3 & TopoJSON -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"
           crossorigin="anonymous" referrerpolicy="no-referrer"></script>
@@ -148,11 +148,14 @@
 </head>
 <body>
   <div class="page">
-    <header>
-      <h1>India Map Data Visualiser</h1>
-      <p style="margin:0.3rem 0 0.5rem;">
-        Choose states, pick colours, add your data title & description, then export the map as PNG or PDF.
-      </p>
+    <header style="display:flex; align-items:center; gap:12px;">
+      <img src="favicon.svg" alt="Logo" style="height:42px;">
+      <div>
+        <h1 style="margin:0;">India Map Data Visualiser (Khelo Bharat)</h1>
+        <p style="margin:0.3rem 0 0.5rem;">
+          Choose states, pick colours, add your data title & description, then export the map.
+        </p>
+      </div>
     </header>
 
     <div class="layout">
@@ -455,5 +458,10 @@
     document.getElementById("downloadPngBtn").addEventListener("click", exportAsPNG);
     document.getElementById("downloadPdfBtn").addEventListener("click", exportAsPDF);
   </script>
+  <!-- Footer -->
+  <footer class="mt-auto bg-white dark:bg-gray-900 border-t dark:border-gray-700 text-center py-6 text-sm text-gray-600 dark:text-gray-400">
+    © 2025 Khelo Bharat Officials.
+  </footer>
 </body>
 </html>
+
